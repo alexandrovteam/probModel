@@ -188,15 +188,17 @@ class ProbPipeline(object):
                             continue
                         neighbors_map[indices[x, y]].append(idx)
 
+        n_pairs = sum(len(x) for x in neighbors_map.values()) / 2
+
         def w_w0_update_matrix():
             xs = []
             ys = []
             data = []
 
-            # upper part
+            # upper part (corresponds to DW + W0)
             for i in xrange(n_spectra):
                 y_offset = (n_molecules + 1) * i
-                x_offset = (n_masses + n_molecules) * i
+                x_offset = n_masses * i
 
                 ys.append(D.col + y_offset)
                 xs.append(D.row + x_offset)
@@ -206,13 +208,17 @@ class ProbPipeline(object):
                 xs.append(np.arange(n_masses) + x_offset)
                 data.append(np.ones(n_masses))
 
-                ys.append(np.arange(n_molecules) + y_offset)
-                xs.append(np.arange(n_molecules) + x_offset + n_masses)
+            # middle part (corresponds to W)
+            x_offset = n_masses * n_spectra
+
+            for i in xrange(n_spectra):
+                ys.append(np.arange(n_molecules) + (n_molecules + 1) * i)
+                xs.append(np.arange(n_molecules) + x_offset + n_molecules * i)
                 data.append(np.ones(n_molecules))
 
+            # lower part (corresponds to the neighbor abundancy differences)
             x_offset = (n_masses + n_molecules) * n_spectra
 
-            # lower part
             for i in neighbors_map:
                 for j in neighbors_map[i]:
                     if i > j: continue
@@ -231,7 +237,6 @@ class ProbPipeline(object):
             
             result = ssp.coo_matrix((data, (xs, ys)), dtype=float)
 
-            n_pairs = sum(len(x) for x in neighbors_map.values()) / 2
             assert result.nnz == (D.nnz + n_masses + n_molecules) * n_spectra + n_molecules * n_pairs * 2
             assert result.shape[0] == (n_molecules + n_masses) * n_spectra + n_pairs * n_molecules
             assert result.shape[1] == n_spectra * (n_molecules + 1)
@@ -240,6 +245,27 @@ class ProbPipeline(object):
 
         A = w_w0_update_matrix()
         print A.shape, A.nnz
+
+        def w_w0_update(rho, z0, u0, z1, u1, z2, u2):
+            rhs = np.concatenate((z0 + 1.0/rho * u0, z1 + 1.0/rho * u1, z2 + 1.0/rho * u2))
+            from sklearn.linear_model import Lasso
+            lasso = Lasso(alpha=0.1, fit_intercept=False)
+            lasso.fit(A, rhs)
+            w_w0_flattened = lasso.coef_
+            return w_w0_flattened
+
+        z0 = np.zeros(n_masses * n_spectra)
+        u0 = np.zeros(n_masses * n_spectra)
+
+        z1 = np.zeros(n_molecules * n_spectra)
+        u1 = np.zeros(n_molecules * n_spectra)
+
+        z2 = np.zeros(n_pairs * n_molecules)
+        u2 = np.zeros(n_pairs * n_molecules)
+
+        rho = 123
+        w_w0 = w_w0_update(rho, z0, u0, z1, u1, z2, u2)
+
                 
 if __name__ == '__main__':
     import json
