@@ -240,27 +240,31 @@ class ProbPipeline(object):
             assert result.shape[0] == (n_molecules + n_masses) * n_spectra + n_pairs * n_molecules
             assert result.shape[1] == n_spectra * (n_molecules + 1)
 
-            return result
+            return result.tocsc()
 
         A = w_w0_update_matrix()
         print A.shape, A.nnz
 
-        z0 = np.zeros(n_masses * n_spectra)
-        u0 = np.zeros(n_masses * n_spectra)
+        Y = Y.todense().A1
+        
+        z0 = Y + 1
+        u0 = 1e-4 * np.ones(n_masses * n_spectra)
 
-        z1 = np.zeros(n_molecules * n_spectra)
-        u1 = np.zeros(n_molecules * n_spectra)
+        z1 = 1e-4 * np.ones(n_molecules * n_spectra)
+        u1 = 1e-4 * np.ones(n_molecules * n_spectra)
 
-        z2 = np.zeros(n_pairs * n_molecules)
-        u2 = np.zeros(n_pairs * n_molecules)
+        z2 = 1e-4 * np.ones(n_pairs * n_molecules)
+        u2 = 1e-4 * np.ones(n_pairs * n_molecules)
 
         from sklearn.linear_model import Lasso, ElasticNet
 
-        lambda_ = 0.1
-        theta = 0.1
-        rho = 1e-4
+        lambda_ = 1e-4
+        theta = 1e-4
+        rho = 1e-2
 
-        w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], fit_intercept=False, warm_start=True, positive=True)
+        print lambda_/rho/A.shape[0]
+
+        w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], fit_intercept=False, positive=True)
         z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=True)
         z2_ridge = ElasticNet(alpha=theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=True, fit_intercept=False)
 
@@ -271,8 +275,16 @@ class ProbPipeline(object):
             w0 = w_w0_lasso.coef_[n_molecules*n_spectra:]
             return w, w0
 
-        def z0_update(w, w0, u0):
-            raise NotImplementedError
+        from scipy.optimize import fmin_l_bfgs_b
+        def z0_update(Dw_w0, u0):
+            def f(x):
+                return np.dot(u0 + 1, x) - np.dot(Y, np.log(x)) + rho/2 * ((x - Dw_w0)**2).sum()
+
+            def g(x):
+                return u0 + 1 - Y / x + rho * (x - Dw_w0)
+
+            x, value, d = fmin_l_bfgs_b(f, z0, g)
+            return x
 
         def z1_update(w, u1):
             z1_lasso.fit(ssp.eye(z1.shape[0]), w - 1.0 / rho * u1)
@@ -282,18 +294,33 @@ class ProbPipeline(object):
             z2_ridge.fit(ssp.eye(z2.shape[0]), diffs*diffs - 1.0 / rho * u2)
             return z2_ridge.coef_
 
-        logging.info("w,w0 update")
-        w, w0 = w_w0_update()
-        rhs = w_w0_lasso.predict(A)
-        Dw_w0_estimate = rhs[:n_masses*n_spectra]
-        w_estimate = rhs[n_masses*n_spectra:(n_masses+n_molecules)*n_spectra]
-        diff_estimates = rhs[(n_masses+n_molecules)*n_spectra:]
-        #logging.info("z0 update")
-        #z0 = z0_update(w, w0, u0)
-        logging.info("z1 update")
-        z1 = z1_update(w, u1)
-        logging.info("z2 update")
-        z2 = z2_update(diff_estimates, u2)
+        def LL(w, Dw_w0, diffs):
+            return np.dot(Y, Dw_w0) - Dw_w0.sum() - lambda_ * w.sum() - theta * np.linalg.norm(diffs)**2
+
+        max_iter = 100
+        for i in range(max_iter):
+            logging.info("w,w0 update")
+            w, w0 = w_w0_update()
+            rhs = w_w0_lasso.predict(A)
+            Dw_w0_estimate = rhs[:n_masses*n_spectra]
+            w_estimate = rhs[n_masses*n_spectra:(n_masses+n_molecules)*n_spectra]
+            diff_estimates = rhs[(n_masses+n_molecules)*n_spectra:]
+            print LL(w_estimate, Dw_w0_estimate, diff_estimates)
+            logging.info("z0 update")
+            z0 = z0_update(Dw_w0_estimate, u0)
+            print LL(w_estimate, z0, diff_estimates)
+            logging.info("z1 update")
+            z1 = z1_update(w, u1)
+            print LL(z1, z0, diff_estimates)
+            logging.info("z2 update")
+            z2 = z2_update(diff_estimates, u2)
+            u0 += rho * (z0 - Dw_w0_estimate)
+            u1 += rho * (z1 - w_estimate)
+            u2 += rho * (z2 - diff_estimates**2)
+            print LL(z1, z0, z2)
+            print w.reshape((n_molecules, n_spectra)).sum(axis=1)
+            print w0.sum()
+
 
 if __name__ == '__main__':
     import json
