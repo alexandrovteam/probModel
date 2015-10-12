@@ -197,24 +197,23 @@ class ProbPipeline(object):
 
             # upper part (corresponds to DW + W0)
             for i in xrange(n_spectra):
-                y_offset = (n_molecules + 1) * i
+                y_offset = n_molecules * i
                 x_offset = n_masses * i
 
                 ys.append(D.col + y_offset)
                 xs.append(D.row + x_offset)
                 data.append(D.data)
 
-                ys.append(np.repeat(y_offset + n_molecules, n_masses))
-                xs.append(np.arange(n_masses) + x_offset)
-                data.append(np.ones(n_masses))
+            ys.append(np.repeat(np.arange(n_spectra) + n_molecules * n_spectra, n_masses))
+            xs.append(np.arange(n_masses * n_spectra))
+            data.append(np.ones(n_masses * n_spectra))
 
             # middle part (corresponds to W)
             x_offset = n_masses * n_spectra
-
-            for i in xrange(n_spectra):
-                ys.append(np.arange(n_molecules) + (n_molecules + 1) * i)
-                xs.append(np.arange(n_molecules) + x_offset + n_molecules * i)
-                data.append(np.ones(n_molecules))
+            
+            ys.append(np.arange(n_molecules * n_spectra))
+            xs.append(np.arange(n_molecules * n_spectra) + x_offset)
+            data.append(np.ones(n_molecules * n_spectra))
 
             # lower part (corresponds to the neighbor abundancy differences)
             x_offset = (n_masses + n_molecules) * n_spectra
@@ -222,11 +221,11 @@ class ProbPipeline(object):
             for i in neighbors_map:
                 for j in neighbors_map[i]:
                     if i > j: continue
-                    ys.append(np.arange(n_molecules) + (n_molecules + 1) * i)
+                    ys.append(np.arange(n_molecules) + n_molecules * i)
                     xs.append(np.arange(n_molecules) + x_offset)
                     data.append(np.ones(n_molecules))
 
-                    ys.append(np.arange(n_molecules) + (n_molecules + 1) * j)
+                    ys.append(np.arange(n_molecules) + n_molecules * j)
                     xs.append(np.arange(n_molecules) + x_offset)
                     data.append(-1 * np.ones(n_molecules))
                     x_offset += n_molecules
@@ -246,13 +245,14 @@ class ProbPipeline(object):
         A = w_w0_update_matrix()
         print A.shape, A.nnz
 
-        def w_w0_update(rho, z0, u0, z1, u1, z2, u2):
-            rhs = np.concatenate((z0 + 1.0/rho * u0, z1 + 1.0/rho * u1, z2 + 1.0/rho * u2))
-            from sklearn.linear_model import Lasso
-            lasso = Lasso(alpha=0.1, fit_intercept=False)
-            lasso.fit(A, rhs)
-            w_w0_flattened = lasso.coef_
-            return w_w0_flattened
+        lambda_ = 0.1
+        theta = 0.1
+        rho = 1e-4
+
+        from sklearn.linear_model import Lasso, ElasticNet
+        w_w0_lasso = Lasso(alpha=lambda_/rho, fit_intercept=False, warm_start=True, positive=True)
+        z1_lasso = Lasso(alpha=lambda_/rho, fit_intercept=False, warm_start=True, positive=True)
+        z2_ridge = ElasticNet(alpha=2.0*theta/rho, l1_ratio=0, warm_start=True, positive=True, fit_intercept=False)
 
         z0 = np.zeros(n_masses * n_spectra)
         u0 = np.zeros(n_masses * n_spectra)
@@ -263,10 +263,37 @@ class ProbPipeline(object):
         z2 = np.zeros(n_pairs * n_molecules)
         u2 = np.zeros(n_pairs * n_molecules)
 
-        rho = 123
-        w_w0 = w_w0_update(rho, z0, u0, z1, u1, z2, u2)
+        def w_w0_update():
+            rhs = np.concatenate((z0 + 1.0/rho * u0, z1 + 1.0/rho * u1, z2 + 1.0/rho * u2))
+            w_w0_lasso.fit(A, rhs)
+            w = w_w0_lasso.coef_[:n_molecules*n_spectra]
+            w0 = w_w0_lasso.coef_[n_molecules*n_spectra:]
+            return w, w0
 
-                
+        def z0_update(w, w0, u0):
+            raise NotImplementedError
+
+        def z1_update(w, u1):
+            z1_lasso.fit(ssp.eye(z1.shape[0]), w - 1.0 / rho * u1)
+            return z1_lasso.coef_
+
+        def z2_update(diffs, u2):
+            z2_ridge.fit(ssp.eye(z2.shape[0]), diffs*diffs - 1.0 / rho * u2)
+            return z2_ridge.coef_
+
+        logging.info("w,w0 update")
+        w, w0 = w_w0_update()
+        rhs = w_w0_lasso.predict(A)
+        Dw_w0_estimate = rhs[:n_masses*n_spectra]
+        w_estimate = rhs[n_masses*n_spectra:(n_masses+n_molecules)*n_spectra]
+        diff_estimates = rhs[(n_masses+n_molecules)*n_spectra:]
+        #logging.info("z0 update")
+        #z0 = z0_update(w, w0, u0)
+        logging.info("z1 update")
+        z1 = z1_update(w, u1)
+        logging.info("z2 update")
+        z2 = z2_update(diff_estimates, u2)
+
 if __name__ == '__main__':
     import json
     import sys
