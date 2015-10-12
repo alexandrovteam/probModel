@@ -245,15 +245,6 @@ class ProbPipeline(object):
         A = w_w0_update_matrix()
         print A.shape, A.nnz
 
-        lambda_ = 0.1
-        theta = 0.1
-        rho = 1e-4
-
-        from sklearn.linear_model import Lasso, ElasticNet
-        w_w0_lasso = Lasso(alpha=lambda_/rho, fit_intercept=False, warm_start=True, positive=True)
-        z1_lasso = Lasso(alpha=lambda_/rho, fit_intercept=False, warm_start=True, positive=True)
-        z2_ridge = ElasticNet(alpha=2.0*theta/rho, l1_ratio=0, warm_start=True, positive=True, fit_intercept=False)
-
         z0 = np.zeros(n_masses * n_spectra)
         u0 = np.zeros(n_masses * n_spectra)
 
@@ -262,6 +253,16 @@ class ProbPipeline(object):
 
         z2 = np.zeros(n_pairs * n_molecules)
         u2 = np.zeros(n_pairs * n_molecules)
+
+        from sklearn.linear_model import Lasso, ElasticNet
+
+        lambda_ = 0.1
+        theta = 0.1
+        rho = 1e-4
+
+        w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], fit_intercept=False, warm_start=True, positive=True)
+        z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=True)
+        z2_ridge = ElasticNet(alpha=theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=True, fit_intercept=False)
 
         def w_w0_update():
             rhs = np.concatenate((z0 + 1.0/rho * u0, z1 + 1.0/rho * u1, z2 + 1.0/rho * u2))
