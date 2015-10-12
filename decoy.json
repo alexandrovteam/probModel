@@ -1,0 +1,17 @@
+{
+    "file_inputs": {
+      "data_file" : "decoy.imzML",
+      "results_folder": "decoy_results",
+      "database_file": "tiny_component.txt",
+      "database_load_folder": "/tmp/isotope_patterns"
+    },
+    
+    "isotope_generation": {
+        "isocalc_sig": 0.01,
+        "charge": [{"polarity": "+", "n_charges":1}],
+        "isocalc_resolution": 200000.0,
+        "adducts": [{"adduct": "H"}, 
+                    {"adduct": "Na"}, 
+                    {"adduct": "K"}]
+    }
+}
