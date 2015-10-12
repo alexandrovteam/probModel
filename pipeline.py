@@ -161,10 +161,10 @@ class ProbPipeline(object):
 
         #print self.sum_formulae
         logging.info("computing Y matrix")
-        Y = sparse_matrix_from_spectra([(s.mzs, s.intensities) for s in self.spectra]).tocsc()
+        Y = sparse_matrix_from_spectra([(s.mzs, s.intensities) for s in self.spectra])
         #print Y.nnz, Y.shape
         logging.info("computing D matrix")
-        D = sparse_matrix_from_spectra(isotope_patterns, assume_presence=True).tocsc()
+        D = sparse_matrix_from_spectra(isotope_patterns, assume_presence=True)
         #print D.nnz, D.shape
 
         n_masses, n_molecules = D.shape
@@ -187,6 +187,59 @@ class ProbPipeline(object):
                         if idx == -1:
                             continue
                         neighbors_map[indices[x, y]].append(idx)
+
+        def w_w0_update_matrix():
+            xs = []
+            ys = []
+            data = []
+
+            # upper part
+            for i in xrange(n_spectra):
+                y_offset = (n_molecules + 1) * i
+                x_offset = (n_masses + n_molecules) * i
+
+                ys.append(D.col + y_offset)
+                xs.append(D.row + x_offset)
+                data.append(D.data)
+
+                ys.append(np.repeat(y_offset + n_molecules, n_masses))
+                xs.append(np.arange(n_masses) + x_offset)
+                data.append(np.ones(n_masses))
+
+                ys.append(np.arange(n_molecules) + y_offset)
+                xs.append(np.arange(n_molecules) + x_offset + n_masses)
+                data.append(np.ones(n_molecules))
+
+            x_offset = (n_masses + n_molecules) * n_spectra
+
+            # lower part
+            for i in neighbors_map:
+                for j in neighbors_map[i]:
+                    if i > j: continue
+                    ys.append(np.arange(n_molecules) + (n_molecules + 1) * i)
+                    xs.append(np.arange(n_molecules) + x_offset)
+                    data.append(np.ones(n_molecules))
+
+                    ys.append(np.arange(n_molecules) + (n_molecules + 1) * j)
+                    xs.append(np.arange(n_molecules) + x_offset)
+                    data.append(-1 * np.ones(n_molecules))
+                    x_offset += n_molecules
+            
+            xs = np.concatenate(xs)
+            ys = np.concatenate(ys)
+            data = np.concatenate(data)
+            
+            result = ssp.coo_matrix((data, (xs, ys)), dtype=float)
+
+            n_pairs = sum(len(x) for x in neighbors_map.values()) / 2
+            assert result.nnz == (D.nnz + n_masses + n_molecules) * n_spectra + n_molecules * n_pairs * 2
+            assert result.shape[0] == (n_molecules + n_masses) * n_spectra + n_pairs * n_molecules
+            assert result.shape[1] == n_spectra * (n_molecules + 1)
+
+            return result
+
+        A = w_w0_update_matrix()
+        print A.shape, A.nnz
                 
 if __name__ == '__main__':
     import json
