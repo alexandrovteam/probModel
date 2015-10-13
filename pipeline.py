@@ -126,7 +126,7 @@ class ProbPipeline(object):
 
     def compute_abundancies(self):
         def bin_numbers(mzs):
-            return (mzs * 1000).astype(np.int32)
+            return (mzs * 200).astype(np.int32)
 
         isotope_patterns = [self.mz_list[f][a] for f in self.sum_formulae for a in self.adducts]
         all_mzs = np.concatenate([pattern[0] for pattern in isotope_patterns])
@@ -147,7 +147,7 @@ class ProbPipeline(object):
                     length = len(known)
                 else:
                     length = len(mzs)
-                intensity_list.append(intensities)
+                intensity_list.append(intensities/np.linalg.norm(intensities))
                 row_list.append(idx)
                 len_list.append(length)
 
@@ -170,7 +170,7 @@ class ProbPipeline(object):
         n_masses, n_molecules = D.shape
         n_spectra = Y.shape[1]
 
-        #np.set_printoptions(threshold='nan', linewidth=300)
+        np.set_printoptions(threshold='nan', linewidth=300, precision=3, suppress=True)
         #print (D.todense() > 0).astype(int)
 
         neighbors_map = {}
@@ -245,28 +245,35 @@ class ProbPipeline(object):
         A = w_w0_update_matrix()
         print A.shape, A.nnz
 
-        Y = Y.todense().A1
+        nz = np.where(Y.sum(axis=0)>0)[1].A1
+        xs= self.coords[nz,0]
+        ys= self.coords[nz,1]
+        # FIXME: there must be a simpler way!
+        Y = Y.todense().A1.reshape((n_masses, n_spectra)).ravel(order='F')
+        print "Y sum:", Y.sum()
         
-        z0 = Y + 1
-        u0 = 1e-4 * np.ones(n_masses * n_spectra)
+        z0 = Y
+        u0 = np.zeros(n_masses * n_spectra)
 
-        z1 = 1e-4 * np.ones(n_molecules * n_spectra)
-        u1 = 1e-4 * np.ones(n_molecules * n_spectra)
+        z1 = np.zeros(n_molecules * n_spectra)
+        #z1[[5,6,9,10]] = 1.4
+        #print z1
+        u1 = np.zeros(n_molecules * n_spectra)
 
-        z2 = 1e-4 * np.ones(n_pairs * n_molecules)
-        u2 = 1e-4 * np.ones(n_pairs * n_molecules)
+        z2 = np.zeros(n_pairs * n_molecules)
+        u2 = np.zeros(n_pairs * n_molecules)
 
-        from sklearn.linear_model import Lasso, ElasticNet
+        from sklearn.linear_model import Lasso, ElasticNet, LinearRegression
 
-        lambda_ = 1e-4
-        theta = 1e-4
-        rho = 1e-2
+        lambda_ = 1e-8
+        theta = 1e-30
+        rho = 1e-8
 
         print lambda_/rho/A.shape[0]
 
-        w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], fit_intercept=False, positive=True)
+        w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
         z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=True)
-        z2_ridge = ElasticNet(alpha=theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=True, fit_intercept=False)
+        z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=True, fit_intercept=False)
 
         def w_w0_update():
             rhs = np.concatenate((z0 + 1.0/rho * u0, z1 + 1.0/rho * u1, z2 + 1.0/rho * u2))
@@ -276,14 +283,18 @@ class ProbPipeline(object):
             return w, w0
 
         from scipy.optimize import fmin_l_bfgs_b
+        bounds = [(0, np.inf)] * z0.shape[0]
         def z0_update(Dw_w0, u0):
             def f(x):
-                return np.dot(u0 + 1, x) - np.dot(Y, np.log(x)) + rho/2 * ((x - Dw_w0)**2).sum()
+                result = np.dot(u0 + 1, x) - np.dot(Y, np.log(x)) + rho/2 * ((x - Dw_w0)**2).sum()
+                return result
 
             def g(x):
-                return u0 + 1 - Y / x + rho * (x - Dw_w0)
+                result = u0 + 1 + rho * (x - Dw_w0)
+                result[Y>0] -= Y[Y>0] / x[Y>0] 
+                return result
 
-            x, value, d = fmin_l_bfgs_b(f, z0, g)
+            x, value, d = fmin_l_bfgs_b(f, z0, g, bounds=bounds, iprint=0)
             return x
 
         def z1_update(w, u1):
@@ -291,35 +302,45 @@ class ProbPipeline(object):
             return z1_lasso.coef_
 
         def z2_update(diffs, u2):
-            z2_ridge.fit(ssp.eye(z2.shape[0]), diffs*diffs - 1.0 / rho * u2)
+            z2_ridge.fit(ssp.eye(z2.shape[0]), diffs - 1.0 / rho * u2)
             return z2_ridge.coef_
 
-        def LL(w, Dw_w0, diffs):
+        def LL(w, Dw_w0=None, diffs=None, w0=None):
+            if Dw_w0 is None or diffs is None:
+                assert w0 is not None
+                rhs = A.dot(np.hstack((w, w0)))
+                Dw_w0 = rhs[:n_masses*n_spectra]
+                diffs = rhs[(n_masses+n_molecules)*n_spectra:]
             return np.dot(Y, Dw_w0) - Dw_w0.sum() - lambda_ * w.sum() - theta * np.linalg.norm(diffs)**2
 
-        max_iter = 100
+        print "initial LL", LL(z1, w0=np.zeros(n_spectra))
+
+        max_iter = 5
         for i in range(max_iter):
-            logging.info("w,w0 update")
-            w, w0 = w_w0_update()
+            #logging.info("w,w0 update")
+            w_estimate, w0_estimate = w_w0_update()
             rhs = w_w0_lasso.predict(A)
             Dw_w0_estimate = rhs[:n_masses*n_spectra]
-            w_estimate = rhs[n_masses*n_spectra:(n_masses+n_molecules)*n_spectra]
             diff_estimates = rhs[(n_masses+n_molecules)*n_spectra:]
-            print LL(w_estimate, Dw_w0_estimate, diff_estimates)
-            logging.info("z0 update")
+            print "w,w0 update", LL(w_estimate, Dw_w0_estimate, diff_estimates)
+            #logging.info("z0 update")
             z0 = z0_update(Dw_w0_estimate, u0)
-            print LL(w_estimate, z0, diff_estimates)
-            logging.info("z1 update")
-            z1 = z1_update(w, u1)
-            print LL(z1, z0, diff_estimates)
-            logging.info("z2 update")
+            #logging.info("z1 update")
+            z1 = z1_update(w_estimate, u1)
+            print "z1 update", LL(z1, w0=w0_estimate)
+            #logging.info("z2 update")
             z2 = z2_update(diff_estimates, u2)
             u0 += rho * (z0 - Dw_w0_estimate)
             u1 += rho * (z1 - w_estimate)
-            u2 += rho * (z2 - diff_estimates**2)
-            print LL(z1, z0, z2)
-            print w.reshape((n_molecules, n_spectra)).sum(axis=1)
-            print w0.sum()
+            u2 += rho * (z2 - diff_estimates)
+
+        print D.todense()
+        print Dw_w0_estimate.reshape((n_masses, n_spectra), order='F')
+        print Y.reshape((n_masses, n_spectra), order='F')
+        print LL(w_estimate, Dw_w0_estimate, diff_estimates)
+        print w_estimate.reshape((self.nrows, self.ncols))
+        print w0_estimate.reshape((self.nrows, self.ncols))
+        print self.sum_formulae
 
 
 if __name__ == '__main__':

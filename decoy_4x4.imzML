@@ -1,0 +1,491 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<mzML xmlns="http://psi.hupo.org/ms/mzml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://psi.hupo.org/ms/mzml http://psidev.info/files/ms/mzML/xsd/mzML1.1.0_idx.xsd" version="1.1">
+  <cvList count="2">
+    <cv uri="http://psidev.cvs.sourceforge.net/*checkout*/psidev/psi/psi-ms/mzML/controlledVocabulary/psi-ms.obo" fullName="Proteomics Standards Initiative Mass Spectrometry Ontology" id="MS" version="3.65.0"/>
+    <cv uri="http://obo.cvs.sourceforge.net/*checkout*/obo/obo/ontology/phenotype/unit.obo" fullName="Unit Ontology" id="UO" version="12:10:2011"/>
+  </cvList>
+
+  <fileDescription>
+    <fileContent>
+      <cvParam cvRef="MS" accession="MS:1000579" name="MS1 spectrum" value=""/>
+      <cvParam cvRef="IMS" accession="IMS:1000031" name="processed" value=""/>
+      <cvParam cvRef="IMS" accession="IMS:1000080" name="universally unique identifier" value="{16F28302-1D5B-4FC1-97F3-3C1937909522}"/>
+      <cvParam cvRef="IMS" accession="IMS:1000091" name="ibd SHA-1" value="CC1CCFDBB47A0B6B27A8D6F68A5B06334094D512"/>
+    </fileContent>
+  </fileDescription>
+
+  <referenceableParamGroupList count="2">
+    <referenceableParamGroup id="mzArray">
+      <cvParam cvRef="MS" accession="MS:1000514" name="m/z array" value=""/>
+      <cvParam cvRef="MS" accession="MS:1000523" name="64-bit float" value=""/>
+      <cvParam cvRef="MS" accession="MS:1000576" name="no compression" value=""/>
+    </referenceableParamGroup>
+    <referenceableParamGroup id="intensityArray">
+      <cvParam cvRef="MS" accession="MS:1000515" name="intensity array" value=""/>
+      <cvParam cvRef="MS" accession="MS:1000523" name="32-bit float" value=""/>
+      <cvParam cvRef="MS" accession="MS:1000576" name="no compression" value=""/>
+    </referenceableParamGroup>
+  </referenceableParamGroupList>
+
+  <softwareList count="1">
+    <software id="pyimzml" version="0.0001">
+      <cvParam cvRef="MS" accession="MS:xxx" name="pyimzml" value="pyimzml exporter"/>
+    </software>
+  </softwareList>
+  <scanSettingsList count="1">
+    <scanSettings id="scanSettings1">
+      <cvParam cvRef="IMS" accession="IMS:1000042" name="max count of pixels x" value="4"/>
+      <cvParam cvRef="IMS" accession="IMS:1000043" name="max count of pixels y" value="4"/>
+    </scanSettings>
+  </scanSettingsList>
+  
+  <instrumentConfigurationList count="1">
+    <instrumentConfiguration id="IC1">
+    </instrumentConfiguration>
+  </instrumentConfigurationList>
+
+  <dataProcessingList count="1">
+    <dataProcessing id="export_from_pyimzml">
+      <processingMethod order="0" softwareRef="pyimzml">
+        <cvParam cvRef="MS" accession="MS:1000530" name="file format conversion" value="Output to imzML"/>
+      </processingMethod>
+    </dataProcessing>
+  </dataProcessingList>
+
+  <run defaultInstrumentConfigurationRef="IC1" id="decoy_4x4">
+    <spectrumList count="16" defaultDataProcessingRef="export_from_pyimzml">
+      <spectrum defaultArrayLength="0" id="spectrum=1" index="1">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="1"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="1"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3726"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="29808"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="16"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3726"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="14904"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="29824"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=2" index="2">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="2"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="1"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3688"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="29504"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="44728"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3688"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="14752"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="74232"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=3" index="3">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="3"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="1"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="552"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="4416"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="88984"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="552"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="2208"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="93400"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=4" index="4">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="4"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="1"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="571"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="4568"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="95608"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="571"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="2284"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="100176"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=5" index="5">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="1"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="2"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3734"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="29872"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="102460"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3734"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="14936"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="132332"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=6" index="6">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="2"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="2"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="5946"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="47568"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="147268"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="5946"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="23784"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="194836"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=7" index="7">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="3"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="2"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3454"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="27632"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="218620"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3454"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="13816"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="246252"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=8" index="8">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="4"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="2"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="580"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="4640"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="260068"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="580"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="2320"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="264708"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=9" index="9">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="1"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="3"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="574"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="4592"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="267028"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="574"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="2296"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="271620"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=10" index="10">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="2"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="3"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3450"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="27600"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="273916"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3450"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="13800"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="301516"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=11" index="11">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="3"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="3"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3472"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="27776"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="315316"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="3472"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="13888"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="343092"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=12" index="12">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="4"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="3"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="563"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="4504"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="356980"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="563"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="2252"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="361484"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=13" index="13">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="1"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="4"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="567"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="4536"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="363736"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="567"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="2268"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="368272"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=14" index="14">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="2"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="4"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="555"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="4440"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="370540"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="555"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="2220"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="374980"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=15" index="15">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="3"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="4"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="536"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="4288"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="377200"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="536"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="2144"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="381488"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+      <spectrum defaultArrayLength="0" id="spectrum=16" index="16">
+        <referenceableParamGroupRef ref="spectrum"/>
+        <scanList count="1">
+          <cvParam accession="MS:1000795" cvRef="MS" name="no combination"/>
+          <scan instrumentConfigurationRef="instrumentConfiguration0">
+            <cvParam accession="IMS:1000050" cvRef="IMS" name="position x" value="4"/>
+            <cvParam accession="IMS:1000051" cvRef="IMS" name="position y" value="4"/>
+            <cvParam accession="IMS:1000052" cvRef="IMS" name="position z" value="0"/>
+          </scan>
+        </scanList>
+        <binaryDataArrayList count="2">
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="mzArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="616"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="4928"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="383632"/>
+            <binary/>
+          </binaryDataArray>
+          <binaryDataArray encodedLength="0">
+            <referenceableParamGroupRef ref="intensityArray"/>
+            <cvParam accession="IMS:1000103" cvRef="IMS" name="external array length" value="616"/>
+            <cvParam accession="IMS:1000104" cvRef="IMS" name="external encoded length" value="2464"/>
+            <cvParam accession="IMS:1000102" cvRef="IMS" name="external offset" value="388560"/>
+            <binary/>
+          </binaryDataArray>
+        </binaryDataArrayList>
+      </spectrum>
+    </spectrumList>
+  </run>
+</mzML>
