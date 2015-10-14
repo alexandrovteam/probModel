@@ -266,15 +266,15 @@ class ProbPipeline(object):
 
         from sklearn.linear_model import Lasso, ElasticNet, LinearRegression
 
-        lambda_ = 1e-8
-        theta = 1e-20
+        lambda_ = 1e-6
+        theta = 1e-50
         rho = 1e-6
 
         print lambda_/rho/A.shape[0]
 
-        w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
-        z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=True)
-        z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=True, fit_intercept=False)
+        w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=False)
+        z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=False)
+        z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=False, fit_intercept=False)
 
         def w_w0_update():
             rhs = np.concatenate((z0 + 1.0/rho * u0, z1 + 1.0/rho * u1, z2 + 1.0/rho * u2))
