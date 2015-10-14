@@ -181,7 +181,8 @@ class ProbPipeline(object):
         for x in xrange(self.nrows):
             for y in xrange(self.ncols):
                 neighbors_map[indices[x, y]] = []
-                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)]:
+                #for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)]:
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                     if 0 <= x + dx < self.nrows and 0 <= y + dy < self.ncols:
                         idx = indices[x + dx, y + dy]
                         if idx == -1:
@@ -252,7 +253,7 @@ class ProbPipeline(object):
         Y = Y.todense().A1.reshape((n_masses, n_spectra)).ravel(order='F')
         print "Y sum:", Y.sum()
         
-        z0 = Y
+        z0 = Y+1
         u0 = np.zeros(n_masses * n_spectra)
 
         z1 = np.zeros(n_molecules * n_spectra)
@@ -266,8 +267,8 @@ class ProbPipeline(object):
         from sklearn.linear_model import Lasso, ElasticNet, LinearRegression
 
         lambda_ = 1e-8
-        theta = 1e-30
-        rho = 1e-8
+        theta = 1e-20
+        rho = 1e-6
 
         print lambda_/rho/A.shape[0]
 
@@ -286,15 +287,14 @@ class ProbPipeline(object):
         bounds = [(0, np.inf)] * z0.shape[0]
         def z0_update(Dw_w0, u0):
             def f(x):
-                result = np.dot(u0 + 1, x) - np.dot(Y, np.log(x)) + rho/2 * ((x - Dw_w0)**2).sum()
+                result = x.sum() - np.dot(Y[x>0], np.log(x[x>0])) + rho/2 * ((x - Dw_w0 + 1/rho * u0)**2).sum()
                 return result
 
             def g(x):
-                result = u0 + 1 + rho * (x - Dw_w0)
-                result[Y>0] -= Y[Y>0] / x[Y>0] 
+                result = -Y / x + 1 + rho * (x - Dw_w0 + 1/rho * u0)
                 return result
 
-            x, value, d = fmin_l_bfgs_b(f, z0, g, bounds=bounds, iprint=0)
+            x, value, d = fmin_l_bfgs_b(f, z0, approx_grad=True, bounds=bounds, iprint=0)
             return x
 
         def z1_update(w, u1):
@@ -305,6 +305,7 @@ class ProbPipeline(object):
             z2_ridge.fit(ssp.eye(z2.shape[0]), diffs - 1.0 / rho * u2)
             return z2_ridge.coef_
 
+        # log-likelihood for the original problem (w, w0 variables) 
         def LL(w, Dw_w0=None, diffs=None, w0=None):
             if Dw_w0 is None or diffs is None:
                 assert w0 is not None
@@ -313,26 +314,52 @@ class ProbPipeline(object):
                 diffs = rhs[(n_masses+n_molecules)*n_spectra:]
             return np.dot(Y, Dw_w0) - Dw_w0.sum() - lambda_ * w.sum() - theta * np.linalg.norm(diffs)**2
 
-        print "initial LL", LL(z1, w0=np.zeros(n_spectra))
+        # log-likelihood for the modified problem (variables w, w0, z0, z1, z2, u0, u1, u2)
+        def LL_ADMM():
+            return np.dot(Y, z0) - z0.sum() - lambda_ * z1.sum() - theta * np.linalg.norm(z2)**2 \
+                    - np.dot(u0, z0 - Dw_w0_estimate) \
+                    - np.dot(u1, z1 - w_estimate) \
+                    - np.dot(u2, z2 - diff_estimates) \
+                    - rho/2 * np.linalg.norm(z0 - Dw_w0_estimate) ** 2 \
+                    - rho/2 * np.linalg.norm(z1 - w_estimate) ** 2 \
+                    - rho/2 * np.linalg.norm(z2 - diff_estimates) ** 2
+
+        #print "initial LL", LL(z1, w0=np.zeros(n_spectra))
 
         max_iter = 5
-        for i in range(max_iter):
+        for i in range(max_ite5
             #logging.info("w,w0 update")
             w_estimate, w0_estimate = w_w0_update()
             rhs = w_w0_lasso.predict(A)
             Dw_w0_estimate = rhs[:n_masses*n_spectra]
             diff_estimates = rhs[(n_masses+n_molecules)*n_spectra:]
             print "w,w0 update", LL(w_estimate, Dw_w0_estimate, diff_estimates)
+            print w_estimate.reshape((self.nrows, self.ncol5
             #logging.info("z0 update")
+            print "LL_ADMM after w updates:", LL_ADMM()
             z0 = z0_update(Dw_w0_estimate, u0)
+            print np.linalg.norm(z0 - Dw_w0_estimate)
+            print "LL_ADMM after z0 update:", LL_ADMM() # why is it the same???? FIXME
             #logging.info("z1 update")
             z1 = z1_update(w_estimate, u1)
-            print "z1 update", LL(z1, w0=w0_estimate)
-            #logging.info("z2 update")
-            z2 = z2_update(diff_estimates, u2)
+            print np.linalg.norm(z1 - w_estimate)
+            print "LL_ADMM after z1 update:", LL_ADMM()
+            #print "z1 update", LL(z1, w0=w0_estima5
+            #logging.info("z2 updat5
+            z2 = z2_update(diff_estimates, 5
+            print np.linalg.norm(z2 - diff_estimates)
+            print "LL_ADMM after z2 update:", LL_ADMM()
             u0 += rho * (z0 - Dw_w0_estimate)
             u1 += rho * (z1 - w_estimate)
             u2 += rho * (z2 - diff_estimates)
+            #print "LL_ADMM after u updates:", LL_ADMM()
+            #print w_estimate.sum(), w0_estimate.sum(), z0.sum(), z1.sum(), z2.sum(), u0.sum(), u1.sum(), u2.sum()
+            if i % 100 == 0 and i > 0:
+                rho *5
+                print "rho <-", rho
+                w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
+                z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=True)
+                z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=True, fit_intercept=False)
 
         print D.todense()
         print Dw_w0_estimate.reshape((n_masses, n_spectra), order='F')
