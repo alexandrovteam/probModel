@@ -311,6 +311,11 @@ class ProbPipeline(object):
             z2_ridge.fit(ssp.eye(z2.shape[0]), diffs - 1.0 / rho * u2)
             return z2_ridge.coef_
 
+        def logdot(x, y):
+            if np.any((x>0)&(y==0)):
+                return -np.inf
+            return np.dot(x[y>0], np.log(y[y>0]))
+
         # log-likelihood for the original problem (w, w0 variables) 
         def LL(w, Dw_w0=None, diffs=None, w0=None):
             if Dw_w0 is None or diffs is None:
@@ -318,11 +323,11 @@ class ProbPipeline(object):
                 rhs = A.dot(np.hstack((w, w0)))
                 Dw_w0 = rhs[:n_masses*n_spectra]
                 diffs = rhs[(n_masses+n_molecules)*n_spectra:]
-            return np.dot(Y, Dw_w0) - Dw_w0.sum() - lambda_ * w.sum() - theta * np.linalg.norm(diffs)**2
+            return logdot(Y, Dw_w0) - Dw_w0.sum() - lambda_ * w.sum() - theta * np.linalg.norm(diffs)**2
 
         # log-likelihood for the modified problem (variables w, w0, z0, z1, z2, u0, u1, u2)
         def LL_ADMM():
-            return np.dot(Y, z0) - z0.sum() - lambda_ * z1.sum() - theta * np.linalg.norm(z2)**2 \
+            return logdot(Y, z0) - z0.sum() - lambda_ * z1.sum() - theta * np.linalg.norm(z2)**2 \
                     - np.dot(u0, z0 - Dw_w0_estimate) \
                     - np.dot(u1, z1 - w_estimate) \
                     - np.dot(u2, z2 - diff_estimates) \
