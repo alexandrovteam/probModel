@@ -287,11 +287,17 @@ class ProbPipeline(object):
         bounds = [(0, np.inf)] * z0.shape[0]
         def z0_update(Dw_w0, u0):
             def f(x):
+                if np.any(Y[(Y>0) & (x==0)]):
+                    return np.inf
                 result = x.sum() - np.dot(Y[x>0], np.log(x[x>0])) + rho/2 * ((x - Dw_w0 + 1/rho * u0)**2).sum()
                 return result
 
             def g(x):
-                result = -Y / x + 1 + rho * (x - Dw_w0 + 1/rho * u0)
+                if np.any(Y[(Y>0) & (x==0)]):
+                    return -np.inf
+                result = -Y / x
+                result[Y==0] = 0
+                result += 1 + rho * (x - Dw_w0 + 1/rho * u0)
                 return result
 
             x, value, d = fmin_l_bfgs_b(f, z0, approx_grad=True, bounds=bounds, iprint=0)
@@ -327,26 +333,26 @@ class ProbPipeline(object):
         #print "initial LL", LL(z1, w0=np.zeros(n_spectra))
 
         max_iter = 5
-        for i in range(max_ite5
+        for i in range(max_iter):
             #logging.info("w,w0 update")
             w_estimate, w0_estimate = w_w0_update()
             rhs = w_w0_lasso.predict(A)
             Dw_w0_estimate = rhs[:n_masses*n_spectra]
             diff_estimates = rhs[(n_masses+n_molecules)*n_spectra:]
             print "w,w0 update", LL(w_estimate, Dw_w0_estimate, diff_estimates)
-            print w_estimate.reshape((self.nrows, self.ncol5
+            print w_estimate.reshape((self.nrows, self.ncols))
             #logging.info("z0 update")
             print "LL_ADMM after w updates:", LL_ADMM()
             z0 = z0_update(Dw_w0_estimate, u0)
             print np.linalg.norm(z0 - Dw_w0_estimate)
-            print "LL_ADMM after z0 update:", LL_ADMM() # why is it the same???? FIXME
+            print "LL_ADMM after z0 update:", LL_ADMM()
             #logging.info("z1 update")
             z1 = z1_update(w_estimate, u1)
             print np.linalg.norm(z1 - w_estimate)
             print "LL_ADMM after z1 update:", LL_ADMM()
-            #print "z1 update", LL(z1, w0=w0_estima5
-            #logging.info("z2 updat5
-            z2 = z2_update(diff_estimates, 5
+            #print "z1 update", LL(z1, w0=w0_estimate)
+            #logging.info("z2 update")
+            z2 = z2_update(diff_estimates, u2)
             print np.linalg.norm(z2 - diff_estimates)
             print "LL_ADMM after z2 update:", LL_ADMM()
             u0 += rho * (z0 - Dw_w0_estimate)
