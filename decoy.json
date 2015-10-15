@@ -2,7 +2,7 @@
     "file_inputs": {
       "data_file" : "decoy_4x4.imzML",
       "results_folder": "decoy_4x4_results",
-      "database_file": "one_molecule.txt",
+      "database_file": "tiny_component.txt",
       "database_load_folder": "/tmp/isotope_patterns"
     },
     
@@ -10,6 +10,6 @@
         "isocalc_sig": 0.01,
         "charge": [{"polarity": "+", "n_charges":1}],
         "isocalc_resolution": 200000.0,
-        "adducts": [ {"adduct": "Na"} ]
+        "adducts": [ {"adduct": "K"}, {"adduct": "H"},{"adduct": "Na"} ]
     }
 }

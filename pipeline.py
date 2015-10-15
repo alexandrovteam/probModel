@@ -257,8 +257,6 @@ class ProbPipeline(object):
         u0 = np.zeros(n_masses * n_spectra)
 
         z1 = np.zeros(n_molecules * n_spectra)
-        #z1[[5,6,9,10]] = 1.4
-        #print z1
         u1 = np.zeros(n_molecules * n_spectra)
 
         z2 = np.zeros(n_pairs * n_molecules)
@@ -267,12 +265,12 @@ class ProbPipeline(object):
         from sklearn.linear_model import Lasso, ElasticNet, LinearRegression
 
         lambda_ = 1e-6
-        theta = 1e-50
+        theta = 1e-30
         rho = 1e-6
 
         print lambda_/rho/A.shape[0]
 
-        w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=False)
+        w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
         z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=False)
         z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=False, fit_intercept=False)
 
@@ -312,9 +310,9 @@ class ProbPipeline(object):
             return z2_ridge.coef_
 
         def logdot(x, y):
-            if np.any((x>0)&(y==0)):
-                return -np.inf
-            return np.dot(x[y>0], np.log(y[y>0]))
+            #if np.any((x>0)&(y==0)):
+            #    return -np.inf
+            return np.dot(x, np.log(y+1e-32))
 
         # log-likelihood for the original problem (w, w0 variables) 
         def LL(w, Dw_w0=None, diffs=None, w0=None):
@@ -335,49 +333,47 @@ class ProbPipeline(object):
                     - rho/2 * np.linalg.norm(z1 - w_estimate) ** 2 \
                     - rho/2 * np.linalg.norm(z2 - diff_estimates) ** 2
 
-        #print "initial LL", LL(z1, w0=np.zeros(n_spectra))
-
-        max_iter = 5
+        max_iter = 100
         for i in range(max_iter):
             #logging.info("w,w0 update")
             w_estimate, w0_estimate = w_w0_update()
             rhs = w_w0_lasso.predict(A)
             Dw_w0_estimate = rhs[:n_masses*n_spectra]
             diff_estimates = rhs[(n_masses+n_molecules)*n_spectra:]
-            print "w,w0 update", LL(w_estimate, Dw_w0_estimate, diff_estimates)
-            print w_estimate.reshape((self.nrows, self.ncols))
+            #print "w,w0 update", LL(w_estimate, Dw_w0_estimate, diff_estimates)
+            #print w_estimate.reshape((self.nrows, self.ncols))
+            #print w0_estimate.reshape((self.nrows, self.ncols))
             #logging.info("z0 update")
-            print "LL_ADMM after w updates:", LL_ADMM()
+            #print "LL_ADMM after w updates:", LL_ADMM()
             z0 = z0_update(Dw_w0_estimate, u0)
-            print np.linalg.norm(z0 - Dw_w0_estimate)
-            print "LL_ADMM after z0 update:", LL_ADMM()
+            #print np.linalg.norm(z0 - Dw_w0_estimate)
+            #print "LL_ADMM after z0 update:", LL_ADMM()
             #logging.info("z1 update")
             z1 = z1_update(w_estimate, u1)
-            print np.linalg.norm(z1 - w_estimate)
-            print "LL_ADMM after z1 update:", LL_ADMM()
+            #print np.linalg.norm(z1 - w_estimate)
+            #print "LL_ADMM after z1 update:", LL_ADMM()
             #print "z1 update", LL(z1, w0=w0_estimate)
             #logging.info("z2 update")
             z2 = z2_update(diff_estimates, u2)
-            print np.linalg.norm(z2 - diff_estimates)
-            print "LL_ADMM after z2 update:", LL_ADMM()
+            #print np.linalg.norm(z2 - diff_estimates)
+            #print "LL_ADMM after z2 update:", LL_ADMM()
             u0 += rho * (z0 - Dw_w0_estimate)
             u1 += rho * (z1 - w_estimate)
             u2 += rho * (z2 - diff_estimates)
             #print "LL_ADMM after u updates:", LL_ADMM()
             #print w_estimate.sum(), w0_estimate.sum(), z0.sum(), z1.sum(), z2.sum(), u0.sum(), u1.sum(), u2.sum()
-            if i % 100 == 0 and i > 0:
-                rho *5
+            if i % 10 == 0 and i > 0:
+                rho *= 2
                 print "rho <-", rho
                 w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
-                z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=True)
-                z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=True, fit_intercept=False)
+                z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=False)
+                z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=False, fit_intercept=False)
 
         print D.todense()
-        print Dw_w0_estimate.reshape((n_masses, n_spectra), order='F')
-        print Y.reshape((n_masses, n_spectra), order='F')
+        print (Y-Dw_w0_estimate).reshape((n_masses, n_spectra), order='F')
         print LL(w_estimate, Dw_w0_estimate, diff_estimates)
-        print w_estimate.reshape((self.nrows, self.ncols))
-        print w0_estimate.reshape((self.nrows, self.ncols))
+        print w_estimate.reshape((n_molecules, self.nrows, self.ncols), order='F')
+        print w0_estimate.reshape((self.nrows, self.ncols), order='F')
         print self.sum_formulae
 
 
