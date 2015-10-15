@@ -246,7 +246,7 @@ class ProbPipeline(object):
         A = w_w0_update_matrix()
         print A.shape, A.nnz
 
-        nz = np.where(Y.sum(axis=0)>0)[1].A1
+        nz = np.where(Y.sum(axis=0)>0)[1]#.A1
         xs= self.coords[nz,0]
         ys= self.coords[nz,1]
         # FIXME: there must be a simpler way!
@@ -266,7 +266,7 @@ class ProbPipeline(object):
 
         lambda_ = 1e-6
         theta = 1e-30
-        rho = 1e-6
+        rho = 1e-8
 
         print lambda_/rho/A.shape[0]
 
@@ -332,10 +332,12 @@ class ProbPipeline(object):
                     - rho/2 * np.linalg.norm(z1 - w_estimate) ** 2 \
                     - rho/2 * np.linalg.norm(z2 - diff_estimates) ** 2
 
-        max_iter = 100
+        max_iter = 500
+        rhs = None
         for i in range(max_iter):
             #logging.info("w,w0 update")
             w_estimate, w0_estimate = w_w0_update()
+            rhs_old = rhs
             rhs = w_w0_lasso.predict(A)
             Dw_w0_estimate = rhs[:n_masses*n_spectra]
             diff_estimates = rhs[(n_masses+n_molecules)*n_spectra:]
@@ -344,6 +346,7 @@ class ProbPipeline(object):
             #print w0_estimate.reshape((self.nrows, self.ncols))
             #logging.info("z0 update")
             #print "LL_ADMM after w updates:", LL_ADMM()
+            z0_old, z1_old, z2_old = z0, z1, z2
             z0 = z0_update(Dw_w0_estimate, u0)
             #print np.linalg.norm(z0 - Dw_w0_estimate)
             #print "LL_ADMM after z0 update:", LL_ADMM()
@@ -354,14 +357,22 @@ class ProbPipeline(object):
             #print "z1 update", LL(z1, w0=w0_estimate)
             #logging.info("z2 update")
             z2 = z2_update(diff_estimates, u2)
+
             #print np.linalg.norm(z2 - diff_estimates)
             #print "LL_ADMM after z2 update:", LL_ADMM()
+            u_old = np.concatenate((u0, u1, u2))
             u0 += rho * (z0 - Dw_w0_estimate)
             u1 += rho * (z1 - w_estimate)
             u2 += rho * (z2 - diff_estimates)
+
+            if rhs_old is not None:
+                u = np.concatenate((u0, u1, u2))
+                primal_diff = 1.0 / rho * np.linalg.norm(u - u_old)
+                dual_diff = rho * np.linalg.norm(rhs - rhs_old)
+                print primal_diff, dual_diff, primal_diff + dual_diff, LL(w_estimate, Dw_w0_estimate, diff_estimates)
             #print "LL_ADMM after u updates:", LL_ADMM()
             #print w_estimate.sum(), w0_estimate.sum(), z0.sum(), z1.sum(), z2.sum(), u0.sum(), u1.sum(), u2.sum()
-            if i % 10 == 0 and i > 0:
+            if i % 1000 == 0 and i > 0:
                 # TODO: exploit dual residuals for setting rho
                 rho *= 2
                 print "rho <-", rho
