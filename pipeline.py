@@ -147,7 +147,7 @@ class ProbPipeline(object):
                     length = len(known)
                 else:
                     length = len(mzs)
-                intensity_list.append(intensities/np.linalg.norm(intensities))
+                intensity_list.append(intensities)#/np.linalg.norm(intensities))
                 row_list.append(idx)
                 len_list.append(length)
 
@@ -291,14 +291,13 @@ class ProbPipeline(object):
                 return result
 
             def g(x):
-                if np.any(Y[(Y>0) & (x==0)]):
-                    return -np.inf
                 result = -Y / x
+                result[(Y>0)&(x==0)] = -np.inf
                 result[Y==0] = 0
                 result += 1 + rho * (x - Dw_w0 + 1/rho * u0)
                 return result
 
-            x, value, d = fmin_l_bfgs_b(f, z0, approx_grad=True, bounds=bounds, iprint=0)
+            x, value, d = fmin_l_bfgs_b(f, z0, g, bounds=bounds, iprint=0)
             return x
 
         def z1_update(w, u1):
@@ -363,17 +362,20 @@ class ProbPipeline(object):
             #print "LL_ADMM after u updates:", LL_ADMM()
             #print w_estimate.sum(), w0_estimate.sum(), z0.sum(), z1.sum(), z2.sum(), u0.sum(), u1.sum(), u2.sum()
             if i % 10 == 0 and i > 0:
+                # TODO: exploit dual residuals for setting rho
                 rho *= 2
                 print "rho <-", rho
+                print LL(w_estimate, Dw_w0_estimate, diff_estimates)
+                print w_estimate.reshape((n_molecules, self.nrows, self.ncols), order='F').sum(axis=(1,2))
                 w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
                 z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=False)
                 z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=False, fit_intercept=False)
 
-        print D.todense()
-        print (Y-Dw_w0_estimate).reshape((n_masses, n_spectra), order='F')
+        #print D.todense()
+        #print (Y-Dw_w0_estimate).reshape((n_masses, n_spectra), order='F')
         print LL(w_estimate, Dw_w0_estimate, diff_estimates)
-        print w_estimate.reshape((n_molecules, self.nrows, self.ncols), order='F')
-        print w0_estimate.reshape((self.nrows, self.ncols), order='F')
+        print w_estimate.reshape((n_molecules, self.nrows, self.ncols), order='F').sum(axis=(1,2))
+        #print w0_estimate.reshape((self.nrows, self.ncols), order='F')
         print self.sum_formulae
 
 
