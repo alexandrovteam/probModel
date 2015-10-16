@@ -264,9 +264,9 @@ class ProbPipeline(object):
 
         from sklearn.linear_model import Lasso, ElasticNet, LinearRegression
 
-        lambda_ = 1e-6
+        lambda_ = 1e-4
         theta = 1e-20
-        rho = 1e-8
+        rho = 1e-6
 
         print lambda_/rho/A.shape[0]
 
@@ -282,7 +282,9 @@ class ProbPipeline(object):
             return w, w0
 
         from scipy.optimize import fmin_l_bfgs_b
-        #import nlopt
+        import nlopt
+
+        from numba import njit
 
         def z0_update(Dw_w0, u0):
             eps = 1e-10
@@ -299,20 +301,43 @@ class ProbPipeline(object):
                 result += 1 + rho * (x - Dw_w0 + 1/rho * u0)
                 return result
 
+            @njit
+            def fast_f(x, Y, eps, rho, u0, Dw_w0):
+                result = 0
+                log_eps = np.log(eps)
+                for i in xrange(len(x)):
+                    result += x[i] + rho/2 * (x[i] - Dw_w0[i] + 1/rho * u0[i]) ** 2
+                    if x[i] < eps:
+                        result -= Y[i] * (log_eps - 1.5 + 2 * x[i] / eps - x[i]**2 / (2*eps**2))
+                    else:
+                        result -= Y[i] * np.log(x[i])
+                return result
+
+            @njit
+            def fast_g(x, Y, eps, rho, u0, Dw_w0): 
+                result = np.zeros(x.shape[0])
+                for i in xrange(len(result)):
+                    if x[i] < eps:
+                        result[i] = -Y[i] / (2.0 / eps - x[i] / eps**2)
+                    else:
+                        result[i] = -Y[i] / x[i]
+                    result[i] += 1 + rho * (x[i] - Dw_w0[i] + 1/rho * u0[i])
+                return result
+
             def fg(x, grad):
-                grad[:] = g(x)
-                return f(x)
+                grad[:] = fast_g(x, Y, eps, rho, u0, Dw_w0)
+                return fast_f(x, Y, eps, rho, u0, Dw_w0)
 
-            x, value, d = fmin_l_bfgs_b(f, z0, g, iprint=0)
+            #x, value, d = fmin_l_bfgs_b(f, z0, g, iprint=0)
+            #return x
 
-            #z0_opt = nlopt.opt(nlopt.LD_LBFGS, z0.shape[0])
-            #z0_opt.set_lower_bounds(0)
-            #z0_opt.set_min_objective(fg)
-            #z0_opt.set_ftol_abs(2e-9)
-            #z0_opt.set_maxeval(10)
-            #z0_opt.verbose = 1
-            #result = z0_opt.optimize(z0)
-            return x
+            z0_opt = nlopt.opt(nlopt.LD_LBFGS, z0.shape[0])
+            z0_opt.set_lower_bounds(0)
+            z0_opt.set_min_objective(fg)
+            z0_opt.set_ftol_abs(2e-9)
+            z0_opt.set_maxeval(10)
+            result = z0_opt.optimize(z0)
+            return result
 
         def z1_update(w, u1):
             z1_lasso.fit(ssp.eye(z1.shape[0]), w - 1.0 / rho * u1)
@@ -386,7 +411,7 @@ class ProbPipeline(object):
                 print primal_diff, dual_diff, primal_diff + dual_diff, LL(w_estimate, Dw_w0_estimate, diff_estimates)
             #print "LL_ADMM after u updates:", LL_ADMM()
             #print w_estimate.sum(), w0_estimate.sum(), z0.sum(), z1.sum(), z2.sum(), u0.sum(), u1.sum(), u2.sum()
-            if i % 1000 == 0 and i > 0:
+            if i % 10 == 0 and i > 0:
                 # TODO: exploit dual residuals for setting rho
                 rho *= 2
                 print "rho <-", rho
