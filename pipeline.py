@@ -11,7 +11,7 @@ import scipy.sparse as ssp
 import logging
 import h5py
 
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s', datefmt='%H:%M:%S')
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
 def prepare(mzs_list, intensity_list):
     mzs_list = np.asarray(mzs_list).astype(np.float64)
     intensity_list = np.asarray(intensity_list).astype(np.float32)
@@ -265,7 +265,7 @@ class ProbPipeline(object):
         from sklearn.linear_model import Lasso, ElasticNet, LinearRegression
 
         lambda_ = 1e-6
-        theta = 1e-30
+        theta = 1e-20
         rho = 1e-8
 
         print lambda_/rho/A.shape[0]
@@ -282,22 +282,36 @@ class ProbPipeline(object):
             return w, w0
 
         from scipy.optimize import fmin_l_bfgs_b
-        bounds = [(0, np.inf)] * z0.shape[0]
+        #import nlopt
+
         def z0_update(Dw_w0, u0):
+            eps = 1e-10
             def f(x):
-                if np.any(Y[(Y>0) & (x==0)]):
-                    return np.inf
-                result = x.sum() - np.dot(Y[x>0], np.log(x[x>0])) + rho/2 * ((x - Dw_w0 + 1/rho * u0)**2).sum()
+                result = x.sum() + rho/2 * ((x - Dw_w0 + 1/rho * u0)**2).sum()
+                log_x = np.log(x)
+                log_x[x<eps] = np.log(eps) - 1.5 + 2 * x[x<eps] / eps - x[x<eps]**2 / (2*eps**2)
+                result -= np.dot(Y, log_x)
                 return result
 
             def g(x):
                 result = -Y / x
-                result[(Y>0)&(x==0)] = -np.inf
-                result[Y==0] = 0
+                result[x<eps] = -Y[x<eps] / (2.0 / eps - x[x<eps]/eps**2)
                 result += 1 + rho * (x - Dw_w0 + 1/rho * u0)
                 return result
 
-            x, value, d = fmin_l_bfgs_b(f, z0, g, bounds=bounds, iprint=0)
+            def fg(x, grad):
+                grad[:] = g(x)
+                return f(x)
+
+            x, value, d = fmin_l_bfgs_b(f, z0, g, iprint=0)
+
+            #z0_opt = nlopt.opt(nlopt.LD_LBFGS, z0.shape[0])
+            #z0_opt.set_lower_bounds(0)
+            #z0_opt.set_min_objective(fg)
+            #z0_opt.set_ftol_abs(2e-9)
+            #z0_opt.set_maxeval(10)
+            #z0_opt.verbose = 1
+            #result = z0_opt.optimize(z0)
             return x
 
         def z1_update(w, u1):
@@ -332,10 +346,10 @@ class ProbPipeline(object):
                     - rho/2 * np.linalg.norm(z1 - w_estimate) ** 2 \
                     - rho/2 * np.linalg.norm(z2 - diff_estimates) ** 2
 
-        max_iter = 500
+        max_iter = 50
         rhs = None
         for i in range(max_iter):
-            #logging.info("w,w0 update")
+            logging.info("w,w0 update")
             w_estimate, w0_estimate = w_w0_update()
             rhs_old = rhs
             rhs = w_w0_lasso.predict(A)
@@ -344,18 +358,18 @@ class ProbPipeline(object):
             #print "w,w0 update", LL(w_estimate, Dw_w0_estimate, diff_estimates)
             #print w_estimate.reshape((self.nrows, self.ncols))
             #print w0_estimate.reshape((self.nrows, self.ncols))
-            #logging.info("z0 update")
+            logging.info("z0 update")
             #print "LL_ADMM after w updates:", LL_ADMM()
             z0_old, z1_old, z2_old = z0, z1, z2
             z0 = z0_update(Dw_w0_estimate, u0)
             #print np.linalg.norm(z0 - Dw_w0_estimate)
             #print "LL_ADMM after z0 update:", LL_ADMM()
-            #logging.info("z1 update")
+            logging.info("z1 update")
             z1 = z1_update(w_estimate, u1)
             #print np.linalg.norm(z1 - w_estimate)
             #print "LL_ADMM after z1 update:", LL_ADMM()
             #print "z1 update", LL(z1, w0=w0_estimate)
-            #logging.info("z2 update")
+            logging.info("z2 update")
             z2 = z2_update(diff_estimates, u2)
 
             #print np.linalg.norm(z2 - diff_estimates)
