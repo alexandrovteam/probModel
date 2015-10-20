@@ -264,9 +264,9 @@ class ProbPipeline(object):
 
         from sklearn.linear_model import Lasso, ElasticNet, LinearRegression
 
-        lambda_ = 1e-4
+        lambda_ = 1.0
         theta = 1e-20
-        rho = 1e-6
+        rho = 1.0
 
         print lambda_/rho/A.shape[0]
 
@@ -288,19 +288,6 @@ class ProbPipeline(object):
 
         def z0_update(Dw_w0, u0):
             eps = 1e-10
-            def f(x):
-                result = x.sum() + rho/2 * ((x - Dw_w0 + 1/rho * u0)**2).sum()
-                log_x = np.log(x)
-                log_x[x<eps] = np.log(eps) - 1.5 + 2 * x[x<eps] / eps - x[x<eps]**2 / (2*eps**2)
-                result -= np.dot(Y, log_x)
-                return result
-
-            def g(x):
-                result = -Y / x
-                result[x<eps] = -Y[x<eps] / (2.0 / eps - x[x<eps]/eps**2)
-                result += 1 + rho * (x - Dw_w0 + 1/rho * u0)
-                return result
-
             @njit
             def fast_f(x, Y, eps, rho, u0, Dw_w0):
                 result = 0
@@ -313,31 +300,10 @@ class ProbPipeline(object):
                         result -= Y[i] * np.log(x[i])
                 return result
 
-            @njit
-            def fast_g(x, Y, eps, rho, u0, Dw_w0): 
-                result = np.zeros(x.shape[0])
-                for i in xrange(len(result)):
-                    if x[i] < eps:
-                        result[i] = -Y[i] / (2.0 / eps - x[i] / eps**2)
-                    else:
-                        result[i] = -Y[i] / x[i]
-                    result[i] += 1 + rho * (x[i] - Dw_w0[i] + 1/rho * u0[i])
-                return result
-
-            def fg(x, grad):
-                grad[:] = fast_g(x, Y, eps, rho, u0, Dw_w0)
-                return fast_f(x, Y, eps, rho, u0, Dw_w0)
-
-            #x, value, d = fmin_l_bfgs_b(f, z0, g, iprint=0)
+            tmp = Dw_w0 - 1/rho * u0 - 1/rho
+            return 0.5 * (np.sqrt(tmp ** 2 + 4 * Y / rho) + tmp)
+            #x, value, d = fmin_l_bfgs_b(f, z0)
             #return x
-
-            z0_opt = nlopt.opt(nlopt.LD_LBFGS, z0.shape[0])
-            z0_opt.set_lower_bounds(0)
-            z0_opt.set_min_objective(fg)
-            z0_opt.set_ftol_abs(2e-9)
-            z0_opt.set_maxeval(10)
-            result = z0_opt.optimize(z0)
-            return result
 
         def z1_update(w, u1):
             z1_lasso.fit(ssp.eye(z1.shape[0]), w - 1.0 / rho * u1)
@@ -371,7 +337,7 @@ class ProbPipeline(object):
                     - rho/2 * np.linalg.norm(z1 - w_estimate) ** 2 \
                     - rho/2 * np.linalg.norm(z2 - diff_estimates) ** 2
 
-        max_iter = 50
+        max_iter = 2000
         rhs = None
         for i in range(max_iter):
             logging.info("w,w0 update")
@@ -385,7 +351,7 @@ class ProbPipeline(object):
             #print w0_estimate.reshape((self.nrows, self.ncols))
             logging.info("z0 update")
             #print "LL_ADMM after w updates:", LL_ADMM()
-            z0_old, z1_old, z2_old = z0, z1, z2
+            z_old = np.concatenate((z0, z1, z2))
             z0 = z0_update(Dw_w0_estimate, u0)
             #print np.linalg.norm(z0 - Dw_w0_estimate)
             #print "LL_ADMM after z0 update:", LL_ADMM()
@@ -405,22 +371,23 @@ class ProbPipeline(object):
             u2 += rho * (z2 - diff_estimates)
 
             if rhs_old is not None:
-                u = np.concatenate((u0, u1, u2))
-                primal_diff = 1.0 / rho * np.linalg.norm(u - u_old)
-                dual_diff = rho * np.linalg.norm(rhs - rhs_old)
-                print primal_diff, dual_diff, primal_diff + dual_diff, LL(w_estimate, Dw_w0_estimate, diff_estimates)
-            #print "LL_ADMM after u updates:", LL_ADMM()
-            #print w_estimate.sum(), w0_estimate.sum(), z0.sum(), z1.sum(), z2.sum(), u0.sum(), u1.sum(), u2.sum()
-            if i % 10 == 0 and i > 0:
-                # TODO: exploit dual residuals for setting rho
-                rho *= 2
-                print "rho <-", rho
-                print LL(w_estimate, Dw_w0_estimate, diff_estimates)
-                print w_estimate.reshape((n_molecules, self.nrows, self.ncols), order='F').sum(axis=(1,2))
-                w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
-                z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=False)
-                z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=False, fit_intercept=False)
+                z = np.concatenate((z0, z1, z2))
+                primal_diff = np.linalg.norm(rhs - z)
+                dual_diff = rho * np.linalg.norm(A.T.dot(z - z_old))
 
+                if primal_diff > 10 * dual_diff:
+                    rho *= 2
+                    print "rho <-", rho
+                    w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
+                    z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=False)
+                    z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=False, fit_intercept=False)
+                elif dual_diff > 10 * primal_diff:
+                    rho /= 2
+                    print "rho <-", rho
+                    w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
+                    z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=False)
+                    z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=False, fit_intercept=False)
+                print primal_diff, dual_diff, primal_diff + dual_diff, LL(w_estimate, Dw_w0_estimate, diff_estimates)
         #print D.todense()
         #print (Y-Dw_w0_estimate).reshape((n_masses, n_spectra), order='F')
         print LL(w_estimate, Dw_w0_estimate, diff_estimates)

@@ -43,7 +43,7 @@ def find_components(ppm, targets):
     for target in targets:
         target_index = formulas.index(target)
         target_color = coloring[target_index]
-        if np.sum(coloring == coloring[target_index]) > 50:
+        if np.sum(coloring == coloring[target_index]) > 500:
             continue
         if target_color not in target_components:
             target_components[target_color] = [target]

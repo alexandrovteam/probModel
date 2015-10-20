@@ -2,7 +2,7 @@
     "file_inputs": {
       "data_file" : "decoy.imzML",
       "results_folder": "decoy_results",
-      "database_file": "tiny_component.txt",
+      "database_file": "small_component.txt",
       "database_load_folder": "/tmp/isotope_patterns"
     },
     
