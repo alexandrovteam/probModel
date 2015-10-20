@@ -281,29 +281,9 @@ class ProbPipeline(object):
             w0 = w_w0_lasso.coef_[n_molecules*n_spectra:]
             return w, w0
 
-        from scipy.optimize import fmin_l_bfgs_b
-        import nlopt
-
-        from numba import njit
-
         def z0_update(Dw_w0, u0):
-            eps = 1e-10
-            @njit
-            def fast_f(x, Y, eps, rho, u0, Dw_w0):
-                result = 0
-                log_eps = np.log(eps)
-                for i in xrange(len(x)):
-                    result += x[i] + rho/2 * (x[i] - Dw_w0[i] + 1/rho * u0[i]) ** 2
-                    if x[i] < eps:
-                        result -= Y[i] * (log_eps - 1.5 + 2 * x[i] / eps - x[i]**2 / (2*eps**2))
-                    else:
-                        result -= Y[i] * np.log(x[i])
-                return result
-
             tmp = Dw_w0 - 1/rho * u0 - 1/rho
             return 0.5 * (np.sqrt(tmp ** 2 + 4 * Y / rho) + tmp)
-            #x, value, d = fmin_l_bfgs_b(f, z0)
-            #return x
 
         def z1_update(w, u1):
             z1_lasso.fit(ssp.eye(z1.shape[0]), w - 1.0 / rho * u1)
