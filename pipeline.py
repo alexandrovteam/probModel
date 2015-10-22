@@ -133,7 +133,7 @@ class ProbPipeline(object):
         # append 'infinity' so that searchsorted always returns indices less than the length
         all_mz_int_indices = np.concatenate((np.unique(bin_numbers(all_mzs)), [np.iinfo(np.int32).max]))
 
-        def sparse_matrix_from_spectra(data, assume_presence=False):
+        def sparse_matrix_from_spectra(data, assume_presence=False, normalize=False):
             intensity_list = []
             row_list = []
             len_list = []
@@ -147,7 +147,9 @@ class ProbPipeline(object):
                     length = len(known)
                 else:
                     length = len(mzs)
-                intensity_list.append(intensities)#/np.linalg.norm(intensities))
+                if normalize:
+                    intensities /= np.linalg.norm(intensities)
+                intensity_list.append(intensities)
                 row_list.append(idx)
                 len_list.append(length)
 
@@ -161,10 +163,12 @@ class ProbPipeline(object):
 
         #print self.sum_formulae
         logging.info("computing Y matrix")
-        Y = sparse_matrix_from_spectra([(s.mzs, s.intensities) for s in self.spectra])
+        Y = np.asarray(sparse_matrix_from_spectra([(s.mzs, s.intensities) for s in self.spectra]).todense(order='F'))
         #print Y.nnz, Y.shape
         logging.info("computing D matrix")
-        D = sparse_matrix_from_spectra(isotope_patterns, assume_presence=True)
+        D = sparse_matrix_from_spectra(isotope_patterns, assume_presence=True, normalize=True)
+        D = ssp.hstack((D, 1.0 / np.sqrt(D.shape[0]) * np.ones((D.shape[0], 1)))).tocsr()
+        D_T = D.T.tocsr()
         #print D.nnz, D.shape
 
         n_masses, n_molecules = D.shape
@@ -191,190 +195,87 @@ class ProbPipeline(object):
 
         n_pairs = sum(len(x) for x in neighbors_map.values()) / 2
 
-        def w_w0_update_matrix():
-            xs = []
-            ys = []
-            data = []
+        z = Y
+        w = 1e-4 * np.ones((D.shape[1], Y.shape[1]))
+        u_w = np.zeros(w.shape)
+        u_z = np.zeros(z.shape)
 
-            # upper part (corresponds to DW + W0)
-            for i in xrange(n_spectra):
-                y_offset = n_molecules * i
-                x_offset = n_masses * i
+        lambda_ = 1e-10
+        # TODO: test with spatial penalties
+        theta = 0 #1e-5
+        rho = 10.0
 
-                ys.append(D.col + y_offset)
-                xs.append(D.row + x_offset)
-                data.append(D.data)
+        neighbors_map = {}
 
-            ys.append(np.repeat(np.arange(n_spectra) + n_molecules * n_spectra, n_masses))
-            xs.append(np.arange(n_masses * n_spectra))
-            data.append(np.ones(n_masses * n_spectra))
+        import scipy.sparse.linalg as sspl
+        projector = sspl.splu(sp.sparse.eye(D.shape[1]) + D.T.dot(D))
 
-            # middle part (corresponds to W)
-            x_offset = n_masses * n_spectra
-            
-            ys.append(np.arange(n_molecules * n_spectra))
-            xs.append(np.arange(n_molecules * n_spectra) + x_offset)
-            data.append(np.ones(n_molecules * n_spectra))
+        def project(w, z):
+            v = w + D_T.dot(z)
+            w = projector.solve(v)
+            z = D.dot(w)
+            return w, z
 
-            # lower part (corresponds to the neighbor abundancy differences)
-            x_offset = (n_masses + n_molecules) * n_spectra
-
+        def w_w0_prox(w_w0_prev):
+            x = np.maximum(w_w0_prev - lambda_ / rho, 0.0)
+            return x
+            w_w0 = x[:]
+            x_c = w_w0_prev - lambda_ / 2.0 / rho
             for i in neighbors_map:
                 for j in neighbors_map[i]:
                     if i > j: continue
-                    ys.append(np.arange(n_molecules) + n_molecules * i)
-                    xs.append(np.arange(n_molecules) + x_offset)
-                    data.append(np.ones(n_molecules))
+                    w_w0[:, i] -= x[:, i] / n_pairs
+                    w_w0[:, j] -= x[:, j] / n_pairs
+                    x_c_i, x_c_j = x_c[:, i].T, x_c[:, j].T
+                    b0 = (x_c_i >= 0) & (x_c_j >= 0) # interior
+                    b1 = (x_c_i >= 0) & (x_c_j <  0) # border 1
+                    b2 = (x_c_i  < 0) & (x_c_j >= 0) # border 2
+                    x_c_diff = x_c_j - x_c_i
+                    w_w0[b0, i] += (x_c_i[b0] + 2.0 * theta / (4.0 * theta + rho) * x_c_diff[b0]) / n_pairs
+                    w_w0[b0, j] += (x_c_j[b0] - 2.0 * theta / (4.0 * theta + rho) * x_c_diff[b0]) / n_pairs
+                    w_w0[b1, i] += x_c_i[b1] / (2.0 * theta / rho + 1.0) / n_pairs
+                    w_w0[b2, j] += x_c_j[b2] / (2.0 * theta / rho + 1.0) / n_pairs
+            return w_w0
 
-                    ys.append(np.arange(n_molecules) + n_molecules * j)
-                    xs.append(np.arange(n_molecules) + x_offset)
-                    data.append(-1 * np.ones(n_molecules))
-                    x_offset += n_molecules
-            
-            xs = np.concatenate(xs)
-            ys = np.concatenate(ys)
-            data = np.concatenate(data)
-            
-            result = ssp.coo_matrix((data, (xs, ys)), dtype=float)
+        def z_prox(z_prev):
+            tmp = z_prev - 1.0 / rho
+            return 0.5 * (np.sqrt(tmp ** 2 + 4.0 * Y / rho) + tmp)
 
-            assert result.nnz == (D.nnz + n_masses + n_molecules) * n_spectra + n_molecules * n_pairs * 2
-            assert result.shape[0] == (n_molecules + n_masses) * n_spectra + n_pairs * n_molecules
-            assert result.shape[1] == n_spectra * (n_molecules + 1)
+        from numba import njit
+        from math import sqrt
 
-            return result.tocsc()
+        @njit
+        def z_prox_fast_numba(z, Y, rho, out):
+            M, N = z.shape
+            #r = np.zeros((M, N))
+            for i in xrange(M):
+                for j in xrange(N):
+                    tmp = z[i, j] - 1.0 / rho
+                    out[i, j] = 0.5 * (sqrt(tmp * tmp + 4.0 * Y[i, j] / rho) + tmp)
+            #return r
 
-        A = w_w0_update_matrix()
-        print A.shape, A.nnz
+        def z_prox_fast(z_prev, out):
+            z_prox_fast_numba(z_prev, Y, rho, out)
+            return out
 
-        nz = np.where(Y.sum(axis=0)>0)[1]#.A1
-        xs= self.coords[nz,0]
-        ys= self.coords[nz,1]
-        # FIXME: there must be a simpler way!
-        Y = Y.todense().A1.reshape((n_masses, n_spectra)).ravel(order='F')
-        print "Y sum:", Y.sum()
-        
-        z0 = Y+1
-        u0 = np.zeros(n_masses * n_spectra)
-
-        z1 = np.zeros(n_molecules * n_spectra)
-        u1 = np.zeros(n_molecules * n_spectra)
-
-        z2 = np.zeros(n_pairs * n_molecules)
-        u2 = np.zeros(n_pairs * n_molecules)
-
-        from sklearn.linear_model import Lasso, ElasticNet, LinearRegression
-
-        lambda_ = 1.0
-        theta = 1e-20
-        rho = 1.0
-
-        print lambda_/rho/A.shape[0]
-
-        w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
-        z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=False)
-        z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=False, fit_intercept=False)
-
-        def w_w0_update():
-            rhs = np.concatenate((z0 + 1.0/rho * u0, z1 + 1.0/rho * u1, z2 + 1.0/rho * u2))
-            w_w0_lasso.fit(A, rhs)
-            w = w_w0_lasso.coef_[:n_molecules*n_spectra]
-            w0 = w_w0_lasso.coef_[n_molecules*n_spectra:]
-            return w, w0
-
-        def z0_update(Dw_w0, u0):
-            tmp = Dw_w0 - 1/rho * u0 - 1/rho
-            return 0.5 * (np.sqrt(tmp ** 2 + 4 * Y / rho) + tmp)
-
-        def z1_update(w, u1):
-            z1_lasso.fit(ssp.eye(z1.shape[0]), w - 1.0 / rho * u1)
-            return z1_lasso.coef_
-
-        def z2_update(diffs, u2):
-            z2_ridge.fit(ssp.eye(z2.shape[0]), diffs - 1.0 / rho * u2)
-            return z2_ridge.coef_
-
-        def logdot(x, y):
-            #if np.any((x>0)&(y==0)):
-            #    return -np.inf
-            return np.dot(x, np.log(y+1e-32))
-
-        # log-likelihood for the original problem (w, w0 variables) 
-        def LL(w, Dw_w0=None, diffs=None, w0=None):
-            if Dw_w0 is None or diffs is None:
-                assert w0 is not None
-                rhs = A.dot(np.hstack((w, w0)))
-                Dw_w0 = rhs[:n_masses*n_spectra]
-                diffs = rhs[(n_masses+n_molecules)*n_spectra:]
-            return logdot(Y, Dw_w0) - Dw_w0.sum() - lambda_ * w.sum() - theta * np.linalg.norm(diffs)**2
-
-        # log-likelihood for the modified problem (variables w, w0, z0, z1, z2, u0, u1, u2)
-        def LL_ADMM():
-            return logdot(Y, z0) - z0.sum() - lambda_ * z1.sum() - theta * np.linalg.norm(z2)**2 \
-                    - np.dot(u0, z0 - Dw_w0_estimate) \
-                    - np.dot(u1, z1 - w_estimate) \
-                    - np.dot(u2, z2 - diff_estimates) \
-                    - rho/2 * np.linalg.norm(z0 - Dw_w0_estimate) ** 2 \
-                    - rho/2 * np.linalg.norm(z1 - w_estimate) ** 2 \
-                    - rho/2 * np.linalg.norm(z2 - diff_estimates) ** 2
+        def LL(w):
+            return (Y * np.log(D.dot(w) + 1e-32)).sum() - D.dot(w).sum() - lambda_ * w.sum()
 
         max_iter = 2000
-        rhs = None
+        old_w1 = None
+        tmp = np.zeros(z.shape)
+
         for i in range(max_iter):
-            logging.info("w,w0 update")
-            w_estimate, w0_estimate = w_w0_update()
-            rhs_old = rhs
-            rhs = w_w0_lasso.predict(A)
-            Dw_w0_estimate = rhs[:n_masses*n_spectra]
-            diff_estimates = rhs[(n_masses+n_molecules)*n_spectra:]
-            #print "w,w0 update", LL(w_estimate, Dw_w0_estimate, diff_estimates)
-            #print w_estimate.reshape((self.nrows, self.ncols))
-            #print w0_estimate.reshape((self.nrows, self.ncols))
-            logging.info("z0 update")
-            #print "LL_ADMM after w updates:", LL_ADMM()
-            z_old = np.concatenate((z0, z1, z2))
-            z0 = z0_update(Dw_w0_estimate, u0)
-            #print np.linalg.norm(z0 - Dw_w0_estimate)
-            #print "LL_ADMM after z0 update:", LL_ADMM()
-            logging.info("z1 update")
-            z1 = z1_update(w_estimate, u1)
-            #print np.linalg.norm(z1 - w_estimate)
-            #print "LL_ADMM after z1 update:", LL_ADMM()
-            #print "z1 update", LL(z1, w0=w0_estimate)
-            logging.info("z2 update")
-            z2 = z2_update(diff_estimates, u2)
-
-            #print np.linalg.norm(z2 - diff_estimates)
-            #print "LL_ADMM after z2 update:", LL_ADMM()
-            u_old = np.concatenate((u0, u1, u2))
-            u0 += rho * (z0 - Dw_w0_estimate)
-            u1 += rho * (z1 - w_estimate)
-            u2 += rho * (z2 - diff_estimates)
-
-            if rhs_old is not None:
-                z = np.concatenate((z0, z1, z2))
-                primal_diff = np.linalg.norm(rhs - z)
-                dual_diff = rho * np.linalg.norm(A.T.dot(z - z_old))
-
-                if primal_diff > 10 * dual_diff:
-                    rho *= 2
-                    print "rho <-", rho
-                    w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
-                    z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=False)
-                    z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=False, fit_intercept=False)
-                elif dual_diff > 10 * primal_diff:
-                    rho /= 2
-                    print "rho <-", rho
-                    w_w0_lasso = Lasso(alpha=lambda_/rho/A.shape[0], warm_start=True, fit_intercept=False, positive=True)
-                    z1_lasso = Lasso(alpha=lambda_/rho/z1.shape[0], fit_intercept=False, warm_start=True, positive=False)
-                    z2_ridge = ElasticNet(alpha=2*theta/rho/z2.shape[0], l1_ratio=0, warm_start=True, positive=False, fit_intercept=False)
-                print primal_diff, dual_diff, primal_diff + dual_diff, LL(w_estimate, Dw_w0_estimate, diff_estimates)
-        #print D.todense()
-        #print (Y-Dw_w0_estimate).reshape((n_masses, n_spectra), order='F')
-        print LL(w_estimate, Dw_w0_estimate, diff_estimates)
-        print w_estimate.reshape((n_molecules, self.nrows, self.ncols), order='F').sum(axis=(1,2))
-        #print w0_estimate.reshape((self.nrows, self.ncols), order='F')
-        print self.sum_formulae
-
+            w1 = w_w0_prox(u_w)
+            z1 = z_prox_fast(u_z, tmp)
+            if old_w1 is not None and i % 20 == 0 and i > 0:
+                logging.info("%.3f, %.3f, %.3f" % (LL(w1), np.linalg.norm(w1 - old_w1), np.linalg.norm(w1)))
+            old_w1 = w1[:]
+            w, z = project(2 * w1 - u_w, 2 * z1 - u_z)
+            u_w += 1.5 * (w - w1)
+            u_z += 1.5 * (z - z1)
+            if i % 100 == 0 and i > 0:
+                print w_w0_prox(u_w).reshape((n_molecules, self.nrows, self.ncols), order='F').sum(axis=(1,2))
 
 if __name__ == '__main__':
     import json
