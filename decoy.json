@@ -2,7 +2,7 @@
     "file_inputs": {
       "data_file" : "decoy.imzML",
       "results_folder": "decoy_results",
-      "database_file": "small_component.txt",
+      "database_file": "hmdb_groundtruth.txt",
       "database_load_folder": "/tmp/isotope_patterns"
     },
     
@@ -10,6 +10,6 @@
         "isocalc_sig": 0.01,
         "charge": [{"polarity": "+", "n_charges":1}],
         "isocalc_resolution": 200000.0,
-        "adducts": [ {"adduct": "K"}, {"adduct": "H"},{"adduct": "Na"} ]
+        "adducts": [ {"adduct": "H"}, {"adduct": "K"},{"adduct": "Na"} ]
     }
 }
